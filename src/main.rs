@@ -1,16 +1,22 @@
-// use arboard::Clipboard;
-use daemonize::Daemonize;
 use std::fs::File;
+use arboard::Clipboard;
+use daemonize::Daemonize;
 use tokio::time;
 
-#[tokio::main]
-async fn main() {
-    // let mut clipboard = Clipboard::new().unwrap();
-    // println!("Clipboard text was: {}", clipboard.get_text().unwrap());
+use crate::utils::get_user;
+mod utils;
 
-    // let the_string = "Hello, world!";
-    // clipboard.set_text(the_string).unwrap();
-    // println!("But now the clipboard text should be: \"{}\"", the_string);
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    let mut clipboard = Clipboard::new().unwrap();
+    println!("Clipboard text was: {}", clipboard.get_text().unwrap());
+
+    let the_string = "Hello, world!";
+    clipboard.set_text(the_string).unwrap();
+    println!("But now the clipboard text should be: \"{}\"", the_string);
+
+
+    get_user();
 
     let stdout = File::create("/tmp/daemon.out").unwrap();
     let stderr = File::create("/tmp/daemon.err").unwrap();
@@ -19,7 +25,7 @@ async fn main() {
         .pid_file("/tmp/test.pid") // Every method except `new` and `start`
         .chown_pid_file(true) // is optional, see `Daemonize` documentation
         .working_directory("/tmp") // for default behaviour.
-        .user("nobody")
+        .user(&*get_user())
         .group("daemon") // Group name
         .group(2) // or group id.
         .umask(0o777) // Set umask, `0o027` by default.
