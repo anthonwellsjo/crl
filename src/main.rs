@@ -1,13 +1,12 @@
-use std::fs::File;
 use arboard::Clipboard;
 use daemonize::Daemonize;
+use std::{fs::File, time::Duration};
 use tokio::time;
 
 use crate::utils::get_user;
 mod utils;
 
-#[tokio::main(flavor = "current_thread")]
-async fn main() {
+fn main() {
     let mut clipboard = Clipboard::new().unwrap();
     println!("Clipboard text was: {}", clipboard.get_text().unwrap());
 
@@ -15,11 +14,10 @@ async fn main() {
     clipboard.set_text(the_string).unwrap();
     println!("But now the clipboard text should be: \"{}\"", the_string);
 
-
     get_user();
 
-    let stdout = File::create("/tmp/daemon.out").unwrap();
-    let stderr = File::create("/tmp/daemon.err").unwrap();
+    let stdout = File::create("./daemon.out").unwrap();
+    let stderr = File::create("./daemon.err").unwrap();
 
     let daemonize = Daemonize::new()
         .pid_file("/tmp/test.pid") // Every method except `new` and `start`
@@ -35,15 +33,20 @@ async fn main() {
         .privileged_action(|| "Executed before drop privileges");
 
     match daemonize.start() {
-        Ok(_) => {
-            println!("Success, daemonized");
-            println!("hello");
-            let mut interval = time::interval(time::Duration::from_secs(2));
-            for _i in 0..5 {
-                interval.tick().await;
+        Ok(_) => tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                println!("Hello world");
+                println!("Success, daemonized");
                 println!("hello");
-            }
-        }
+                let mut interval = time::interval(time::Duration::from_secs(1));
+                for _i in 0..5 {
+                    println!("blablabla");
+                    interval.tick().await;
+                }
+            }),
         Err(e) => eprintln!("Error, {}", e),
     }
 }
