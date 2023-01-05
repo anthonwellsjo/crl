@@ -1,10 +1,11 @@
 use arboard::Clipboard;
 use daemonize::Daemonize;
-use std::{fs::File, time::Duration};
+use std::fs::File;
 use tokio::time;
 
 use crate::utils::get_user;
 mod utils;
+mod db;
 
 fn main() {
     let mut clipboard = Clipboard::new().unwrap();
@@ -38,12 +39,12 @@ fn main() {
             .build()
             .unwrap()
             .block_on(async {
-                println!("Hello world");
-                println!("Success, daemonized");
-                println!("hello");
-                let mut interval = time::interval(time::Duration::from_secs(1));
-                for i in 1..100 {
-                    println!("blablabla {}", i);
+                let mut clipboard = Clipboard::new().unwrap();
+                let mut interval = time::interval(time::Duration::from_millis(500));
+                loop {
+                    println!("yeah");
+                    let latest_clipboard = clipboard.get_text().unwrap();
+
                     interval.tick().await;
                 }
             }),
