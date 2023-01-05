@@ -53,9 +53,7 @@ pub fn get_crls() -> Result<Vec<SavedCrl>> {
 
     let crls = stmt.query_map([], |row| {
         Ok(SavedCrl {
-            crl: Crl {
-                text: row.get(0)?,
-            },
+            crl: Crl { text: row.get(0)? },
             timestamp: row.get(1)?,
             id: row.get(2)?,
         })
@@ -118,69 +116,70 @@ fn get_db_path() -> String {
 mod tests {
     use crate::db::{save_new_crl, Crl};
 
+    use crate::db::{save_new_crl, Crl, get_db_path};
 
     #[test]
     fn get_crls() {
         cleanup_test_database();
-        let descs = vec!["one", "two", "three"];
-        for desc in descs.iter() {
-            let to_do = Crl::new("very important text");
+        let texts = vec!["one", "two", "three"];
+        for text in texts.iter() {
+            let to_do = Crl::new(text);
             save_new_crl(&to_do).unwrap();
         }
         let crls_from_db = super::get_crls().unwrap();
-        let mut descs_from_db = crls_from_db.iter().map(|crl| -> &str { &crl.description });
-        assert!(descs_from_db.all(|item| descs.contains(&item)));
+        let mut texts_from_db = crls_from_db.iter().map(|crl| -> &str { &crl.crl.text });
+        assert!(texts_from_db.all(|item| texts.contains(&item)));
     }
 
-    #[test]
-    fn save_a_dro() {
-        let description = "Test description";
-        let to_do = Dro::new(description);
-        save_dro_to_db(&to_do).unwrap();
-        let to_dos = get_dros().unwrap();
-        assert_eq!(to_dos.iter().any(|i| i.description == description), true);
-    }
+    // #[test]
+    // fn save_a_dro() {
+    //     let description = "Test description";
+    //     let to_do = Dro::new(description);
+    //     save_dro_to_db(&to_do).unwrap();
+    //     let to_dos = get_dros().unwrap();
+    //     assert_eq!(to_dos.iter().any(|i| i.description == description), true);
+    // }
 
-    #[test]
-    fn save_and_load_dros_from_db() {
-        let description = TestUtils::create_rnd_string();
-        let description_two = TestUtils::create_rnd_string();
-        let to_do = Dro::new(&description);
-        let to_do2 = Dro::new(&description_two);
-        save_dro_to_db(&to_do).unwrap();
-        save_dro_to_db(&to_do2).unwrap();
+    // #[test]
+    // fn save_and_load_dros_from_db() {
+    //     let description = TestUtils::create_rnd_string();
+    //     let description_two = TestUtils::create_rnd_string();
+    //     let to_do = Dro::new(&description);
+    //     let to_do2 = Dro::new(&description_two);
+    //     save_dro_to_db(&to_do).unwrap();
+    //     save_dro_to_db(&to_do2).unwrap();
 
-        let dros = get_dros().unwrap();
-        assert!(&dros.iter().any(|x| x.description == description_two));
-    }
+    //     let dros = get_dros().unwrap();
+    //     assert!(&dros.iter().any(|x| x.description == description_two));
+    // }
 
-    #[test]
-    fn mark_as_done() {
-        cleanup_test_database();
-        let description = TestUtils::create_rnd_string();
-        let to_do = Dro::new(&description);
-        save_dro_to_db(&to_do).unwrap();
-        mark_dro_as_done(&description).unwrap();
-        let dros = get_dros().unwrap();
-        let dro: &Dro = dros.iter().nth(0).unwrap();
-        assert_eq!(dro.done, true);
-    }
+    // #[test]
+    // fn mark_as_done() {
+    //     cleanup_test_database();
+    //     let description = TestUtils::create_rnd_string();
+    //     let to_do = Dro::new(&description);
+    //     save_dro_to_db(&to_do).unwrap();
+    //     mark_dro_as_done(&description).unwrap();
+    //     let dros = get_dros().unwrap();
+    //     let dro: &Dro = dros.iter().nth(0).unwrap();
+    //     assert_eq!(dro.done, true);
+    // }
 
-    #[test]
-    fn mark_as_undone() {
-        cleanup_test_database();
-        let description = TestUtils::create_rnd_string();
-        let to_do = Dro::new(&description);
-        save_dro_to_db(&to_do).unwrap();
-        mark_dro_as_done(&description).unwrap();
-        let dros_done = get_dros().unwrap();
-        let dro_done: &Dro = dros_done.iter().nth(0).unwrap();
-        assert_eq!(dro_done.done, true);
-        mark_dro_as_undone(&description).unwrap();
-        let dros_undone = get_dros().unwrap();
-        let dro_undone: &Dro = dros_undone.iter().nth(0).unwrap();
-        assert_eq!(dro_undone.done, false);
-    }
+    // #[test]
+    // fn mark_as_undone() {
+    //     cleanup_test_database();
+    //     let description = TestUtils::create_rnd_string();
+    //     let to_do = Dro::new(&description);
+    //     save_dro_to_db(&to_do).unwrap();
+    //     mark_dro_as_done(&description).unwrap();
+    //     let dros_done = get_dros().unwrap();
+    //     let dro_done: &Dro = dros_done.iter().nth(0).unwrap();
+    //     assert_eq!(dro_done.done, true);
+    //     mark_dro_as_undone(&description).unwrap();
+    //     let dros_undone = get_dros().unwrap();
+    //     let dro_undone: &Dro = dros_undone.iter().nth(0).unwrap();
+    //     assert_eq!(dro_undone.done, false);
+    // }
 
     #[test]
     #[ignore]
@@ -192,14 +191,14 @@ mod tests {
         remove_test_db();
     }
 
-    /// Contains common util functions and properties for testing
-    struct TestUtils {}
+    // /// Contains common util functions and properties for testing
+    // struct TestUtils {}
 
-    impl TestUtils {
-        fn create_rnd_string() -> String {
-            let mut rng = rand::thread_rng();
-            let rand_num: u16 = rng.gen();
-            rand_num.to_string()
-        }
-    }
+    // impl TestUtils {
+    //     fn create_rnd_string() -> String {
+    //         let mut rng = rand::thread_rng();
+    //         let rand_num: u16 = rng.gen();
+    //         rand_num.to_string()
+    //     }
+    // }
 }
