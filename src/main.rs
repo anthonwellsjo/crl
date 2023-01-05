@@ -42,8 +42,8 @@ fn main() {
                 println!("Success, daemonized");
                 println!("hello");
                 let mut interval = time::interval(time::Duration::from_secs(1));
-                for _i in 0..5 {
-                    println!("blablabla");
+                for i in 1..100 {
+                    println!("blablabla {}", i);
                     interval.tick().await;
                 }
             }),
