@@ -9,4 +9,6 @@ edition = "2021"
 arboard = "3.2.0"
 arw_brr = "0.1.0"
 daemonize = "0.4.1"
+dirs = "4.0.0"
+rusqlite = "0.28.0"
 tokio = { version = "1.23.0", features = ["full"] }
