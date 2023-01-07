@@ -3,7 +3,7 @@ use daemonize::Daemonize;
 use std::fs::File;
 use tokio::time;
 
-use crate::utils::get_user;
+use crate::{utils::get_user, app::refresh_clipboard};
 mod utils;
 mod db;
 mod app;
