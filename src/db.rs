@@ -3,10 +3,11 @@ use std::fs;
 use dirs;
 use rusqlite::{Connection, Result};
 
+#[derive(Debug)]
 pub struct SavedCrl {
     pub crl: Crl,
     pub id: i64,
-    pub timestamp: u64,
+    pub created_at: String,
 }
 
 #[derive(Debug)]
@@ -30,33 +31,28 @@ pub fn get_db_connection() -> Result<Connection> {
         "CREATE TABLE IF NOT EXISTS crls (
              id INTEGER PRIMARY KEY,
              text TEXT NOT NULL,
-             timestamp INTEGER DEFAULT CURRENT_TIMESTAMP,
-         )",
+             created_at INTEGER DEFAULT CURRENT_TIMESTAMP)",
         [],
     )?;
+
     Ok(conn)
 }
 
-/// Gets all dros from the database
-/// # Examples
-/// ```
-/// use core::db::get_dros;
-/// let res = get_dros();
-/// ```
 pub fn get_crls() -> Result<Vec<SavedCrl>> {
     let conn = get_db_connection()?;
 
     let mut stmt = conn.prepare(
-        "SELECT text, timestamp, id
+        "SELECT id, text, created_at
          FROM crls",
     )?;
 
     let crls = stmt.query_map([], |row| {
-        Ok(SavedCrl {
-            crl: Crl { text: row.get(0)? },
-            timestamp: row.get(1)?,
-            id: row.get(2)?,
-        })
+        let crl = SavedCrl {
+            id: row.get(0)?,
+            crl: Crl { text: row.get(1)? },
+            created_at: row.get(2)?,
+        };
+        Ok(crl)
     })?;
 
     let mut saved_crls: Vec<SavedCrl> = Vec::new();
@@ -72,16 +68,40 @@ pub fn get_crls() -> Result<Vec<SavedCrl>> {
     Ok(saved_crls)
 }
 
-/// Saves a dro to the database
-/// # Arguments
-/// * `to_do` - In instance of the dro struct that will be saved.
-/// # Examples
-/// ```
-/// use core::db::{Dro, save_dro_to_db};
-/// let to_do = Dro::new("Fix the bike wheel");
-/// let res = save_dro_to_db(to_do);
-/// assert_eq!(res, Ok(()));
-/// ```
+pub fn get_latest() -> Result<Option<SavedCrl>> {
+    let conn = get_db_connection()?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, text, MAX(created_at)
+         FROM crls",
+    )?;
+
+    let crls = stmt.query_map([], |row| {
+        let crl = SavedCrl {
+            id: row.get(0)?,
+            crl: Crl { text: row.get(1)? },
+            created_at: row.get(2)?,
+        };
+        Ok(crl)
+    })?;
+
+    let mut saved_crls: Vec<SavedCrl> = Vec::new();
+
+    for crl in crls {
+        let file = match crl {
+            Ok(file) => file,
+            Err(error) => panic!("Problem opening the file: {:?}", error),
+        };
+        saved_crls.push(file);
+    }
+    println!("gaaaaaaaaah {:?}", saved_crls);
+
+    match saved_crls.pop() {
+        Some(crl) => Ok(Some(crl)),
+        None => Ok(None),
+    }
+}
+
 pub fn save_new_crl(crl: &Crl) -> Result<()> {
     let conn = get_db_connection()?;
 
@@ -97,13 +117,13 @@ pub fn save_new_crl(crl: &Crl) -> Result<()> {
 }
 
 /// Gets db-path depending on environment and os. Creates path if not yet there.
-fn get_db_path() -> String {
+pub fn get_db_path() -> String {
     if cfg!(test) {
         String::from("./test-db.sql")
     } else {
         match dirs::home_dir() {
             Some(dir) => {
-                let path = dir.to_str().unwrap().to_owned() + "/dro/";
+                let path = dir.to_str().unwrap().to_owned() + "/crl/";
                 fs::create_dir_all(&path).unwrap();
                 path + "db.sql"
             }
@@ -114,91 +134,63 @@ fn get_db_path() -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::db::{save_new_crl, Crl};
-
-    use crate::db::{save_new_crl, Crl, get_db_path};
+    use crate::{db::{get_db_path, save_new_crl, Crl}, app::TestUtils};
+    use rand::Rng;
+    use core::time;
+    use std::{fs, thread};
 
     #[test]
     fn get_crls() {
-        cleanup_test_database();
+        TestUtils::cleanup_test_database();
         let texts = vec!["one", "two", "three"];
         for text in texts.iter() {
-            let to_do = Crl::new(text);
-            save_new_crl(&to_do).unwrap();
+            let clr = Crl::new(text);
+            save_new_crl(&clr).unwrap();
         }
         let crls_from_db = super::get_crls().unwrap();
         let mut texts_from_db = crls_from_db.iter().map(|crl| -> &str { &crl.crl.text });
         assert!(texts_from_db.all(|item| texts.contains(&item)));
     }
 
-    // #[test]
-    // fn save_a_dro() {
-    //     let description = "Test description";
-    //     let to_do = Dro::new(description);
-    //     save_dro_to_db(&to_do).unwrap();
-    //     let to_dos = get_dros().unwrap();
-    //     assert_eq!(to_dos.iter().any(|i| i.description == description), true);
-    // }
-
-    // #[test]
-    // fn save_and_load_dros_from_db() {
-    //     let description = TestUtils::create_rnd_string();
-    //     let description_two = TestUtils::create_rnd_string();
-    //     let to_do = Dro::new(&description);
-    //     let to_do2 = Dro::new(&description_two);
-    //     save_dro_to_db(&to_do).unwrap();
-    //     save_dro_to_db(&to_do2).unwrap();
-
-    //     let dros = get_dros().unwrap();
-    //     assert!(&dros.iter().any(|x| x.description == description_two));
-    // }
-
-    // #[test]
-    // fn mark_as_done() {
-    //     cleanup_test_database();
-    //     let description = TestUtils::create_rnd_string();
-    //     let to_do = Dro::new(&description);
-    //     save_dro_to_db(&to_do).unwrap();
-    //     mark_dro_as_done(&description).unwrap();
-    //     let dros = get_dros().unwrap();
-    //     let dro: &Dro = dros.iter().nth(0).unwrap();
-    //     assert_eq!(dro.done, true);
-    // }
-
-    // #[test]
-    // fn mark_as_undone() {
-    //     cleanup_test_database();
-    //     let description = TestUtils::create_rnd_string();
-    //     let to_do = Dro::new(&description);
-    //     save_dro_to_db(&to_do).unwrap();
-    //     mark_dro_as_done(&description).unwrap();
-    //     let dros_done = get_dros().unwrap();
-    //     let dro_done: &Dro = dros_done.iter().nth(0).unwrap();
-    //     assert_eq!(dro_done.done, true);
-    //     mark_dro_as_undone(&description).unwrap();
-    //     let dros_undone = get_dros().unwrap();
-    //     let dro_undone: &Dro = dros_undone.iter().nth(0).unwrap();
-    //     assert_eq!(dro_undone.done, false);
-    // }
-
     #[test]
-    #[ignore]
-    fn cleanup_test_database() {
-        fn remove_test_db() {
-            fs::remove_file(get_db_path())
-                .unwrap_or_else(|err| panic!("Panicking while deleting test database: {}", err));
-        }
-        remove_test_db();
+    fn save_a_crl() {
+        let text = "Test description";
+        let crl = Crl::new(text);
+        save_new_crl(&crl).unwrap();
+        let crls = super::get_crls().unwrap();
+        assert_eq!(crls.iter().any(|i| i.crl.text == text), true);
     }
 
-    // /// Contains common util functions and properties for testing
-    // struct TestUtils {}
+    #[test]
+    fn save_and_load_crls_from_db() {
+        let text = TestUtils::create_rnd_string();
+        let text_two = TestUtils::create_rnd_string();
+        let crl = Crl::new(&text);
+        let crl2 = Crl::new(&text_two);
+        save_new_crl(&crl).unwrap();
+        save_new_crl(&crl2).unwrap();
 
-    // impl TestUtils {
-    //     fn create_rnd_string() -> String {
-    //         let mut rng = rand::thread_rng();
-    //         let rand_num: u16 = rng.gen();
-    //         rand_num.to_string()
-    //     }
-    // }
+        let crls = super::get_crls().unwrap();
+        assert!(&crls.iter().any(|x| x.crl.text == text_two));
+    }
+
+    #[test]
+    fn get_latest_crl() {
+        let text = TestUtils::create_rnd_string();
+        let text_two = TestUtils::create_rnd_string();
+        let crl = Crl::new(&text);
+        let crl2 = Crl::new(&text_two);
+        save_new_crl(&crl).unwrap();
+
+        //Wait just about one sec for SQL filter to work properly
+        thread::sleep(time::Duration::from_millis(1010));
+        save_new_crl(&crl2).unwrap();
+
+        let crl = super::get_latest().unwrap();
+        match crl{
+            Some(crl) => assert_eq!(crl.crl.text, text_two),
+            None => assert!(false)
+        }
+    }
+
 }
