@@ -6,14 +6,9 @@ use tokio::time;
 use crate::utils::get_user;
 mod utils;
 mod db;
+mod app;
 
 fn main() {
-    let mut clipboard = Clipboard::new().unwrap();
-    println!("Clipboard text was: {}", clipboard.get_text().unwrap());
-
-    let the_string = "Hello, world!";
-    clipboard.set_text(the_string).unwrap();
-    println!("But now the clipboard text should be: \"{}\"", the_string);
 
     get_user();
 
@@ -39,12 +34,9 @@ fn main() {
             .build()
             .unwrap()
             .block_on(async {
-                let mut clipboard = Clipboard::new().unwrap();
                 let mut interval = time::interval(time::Duration::from_millis(500));
                 loop {
-                    println!("yeah");
-                    let latest_clipboard = clipboard.get_text().unwrap();
-
+                    refresh_clipboard();
                     interval.tick().await;
                 }
             }),
