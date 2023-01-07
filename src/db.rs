@@ -85,19 +85,24 @@ pub fn get_latest() -> Result<Option<SavedCrl>> {
         Ok(crl)
     })?;
 
-    let mut saved_crls: Vec<SavedCrl> = Vec::new();
+    let mut saved_crls: Vec<Option<SavedCrl>> = Vec::new();
 
     for crl in crls {
-        let file = match crl {
-            Ok(file) => file,
-            Err(error) => panic!("Problem opening the file: {:?}", error),
+        let record = match crl {
+            Ok(_crl) => Some(_crl),
+            Err(error) => None,
         };
-        saved_crls.push(file);
+        saved_crls.push(record);
     }
     println!("gaaaaaaaaah {:?}", saved_crls);
 
     match saved_crls.pop() {
-        Some(crl) => Ok(Some(crl)),
+        Some(crl) => {
+            match crl {
+                Some(_) => Ok(crl),
+                None => Ok(None),
+            }
+        }
         None => Ok(None),
     }
 }
@@ -123,7 +128,7 @@ pub fn get_db_path() -> String {
     } else {
         match dirs::home_dir() {
             Some(dir) => {
-                let path = dir.to_str().unwrap().to_owned() + "/crl/";
+                let path = dir.to_str().unwrap().to_owned() + "/Library/Application Support/crl/";
                 fs::create_dir_all(&path).unwrap();
                 path + "db.sql"
             }
