@@ -1,45 +1,20 @@
-use arboard::Clipboard;
-use daemonize::Daemonize;
-use std::fs::File;
-use tokio::time;
-
-use crate::{utils::get_user, app::refresh_clipboard};
-mod utils;
 mod db;
 mod app;
+mod bash_driver;
+
+use bash_driver::display_action_response;
 
 fn main() {
+    println!("running");
+    let action = arw_brr::get_argument_at(0).unwrap();
+    let action = app::Action::from_string(&action);
+    let argument = arw_brr::get_argument_at(1);
 
-    get_user();
+    let mut session = app::Session::new(); 
+    session.run(action, argument);
 
-    let stdout = File::create("./daemon.out").unwrap();
-    let stderr = File::create("./daemon.err").unwrap();
-
-    let daemonize = Daemonize::new()
-        .pid_file("/tmp/test.pid") // Every method except `new` and `start`
-        .chown_pid_file(true) // is optional, see `Daemonize` documentation
-        .working_directory("/tmp") // for default behaviour.
-        .user(&*get_user())
-        .group("daemon") // Group name
-        .group(2) // or group id.
-        .umask(0o777) // Set umask, `0o027` by default.
-        .stdout(stdout) // Redirect stdout to `/tmp/daemon.out`.
-        .stderr(stderr) // Redirect stderr to `/tmp/daemon.err`.
-        .exit_action(|| println!("Executed before master process exits"))
-        .privileged_action(|| "Executed before drop privileges");
-
-    match daemonize.start() {
-        Ok(_) => tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap()
-            .block_on(async {
-                let mut interval = time::interval(time::Duration::from_millis(500));
-                loop {
-                    refresh_clipboard();
-                    interval.tick().await;
-                }
-            }),
-        Err(e) => eprintln!("Error, {}", e),
+    for res in session.action_responses.iter(){
+        display_action_response(res);
     }
+    println!("closing");
 }
