@@ -16,5 +16,4 @@ fn main() {
     for res in session.action_responses.iter(){
         display_action_response(res);
     }
-    println!("closing");
 }

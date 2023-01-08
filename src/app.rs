@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    process,
+    process::{self, Command},
     time::Duration,
 };
 
@@ -16,12 +16,14 @@ use crate::db::{get_db_path, get_latest, save_new_crl, Crl, SavedCrl};
 pub enum Action {
     Start,
     Health,
+    Kill,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
         match s {
             "s" | "start" => Some(Action::Start),
             "h" | "health" => Some(Action::Health),
+            "k" | "kill" => Some(Action::Kill),
             _ => None,
         }
     }
@@ -59,7 +61,9 @@ impl Session {
             Some(Action::Health) => {
                 self.check_health();
             }
-
+            Some(Action::Kill) => {
+                self.kill_daemon();
+            }
             None => {
                 self.action_responses.push(ActionResponse {
                     message: "no action?".to_string(),
@@ -111,7 +115,7 @@ impl Session {
             .umask(0o777) // Set umask, `0o027` by default.
             .stdout(stdout) // Redirect stdout to `/tmp/daemon.out`.
             .stderr(stderr) // Redirect stderr to `/tmp/daemon.err`.
-            .exit_action(|| println!("crl process started. Check health with arg: alive"))
+            .exit_action(|| println!("crl process started. check health with 'crl health'"))
             .privileged_action(|| "Executed before drop privileges");
 
         match daemonize.start() {
@@ -141,16 +145,16 @@ impl Session {
             crl: None,
         });
         self.action_responses.push(ActionResponse {
-            message: "But check that process is alive with arg: alive".to_string(),
+            message: "But check that process is alive with arg 'crl health'".to_string(),
             _type: ActionResponseType::Content,
             crl: None,
         });
     }
 
     fn check_health(&mut self) {
-        let procs = get_processes("crl");
+        let procs = get_processes("crl", true);
 
-        if procs.pid.len() < 2 {
+        if procs.pid.len() < 1 {
             self.action_responses.push(ActionResponse {
                 message: "clr daemon is not running. run 'sudo crl start' to restart...".to_owned(),
                 _type: ActionResponseType::Error,
@@ -158,29 +162,39 @@ impl Session {
             })
         }
 
-        if procs.pid.len() == 2 {
-            let cur_proc_pid = procs
-                .pid
-                .iter()
-                .find(|p| p.to_owned().to_owned() != process::id())
-                .unwrap();
-
+        if procs.pid.len() == 1 {
             self.action_responses.push(ActionResponse {
-                message: "crl daemon is running on pid: ".to_owned() + &cur_proc_pid.to_string(),
+                message: "crl daemon is running on pid: ".to_owned()
+                    + &procs.pid.first().unwrap().to_string(),
                 _type: ActionResponseType::Success,
                 crl: None,
             })
         }
 
-        if procs.pid.len() > 2 {
+        if procs.pid.len() > 1 {
             self.action_responses.push(ActionResponse {
                 message: "more than one daemon running... not good.".to_owned(),
                 _type: ActionResponseType::Error,
                 crl: None,
             })
         }
+    }
 
-        println!("{:?}", procs);
+    fn kill_daemon(&mut self) {
+        let procs = get_processes("crl", true);
+        for p in procs.pid {
+            Command::new("sh")
+                .arg("-c")
+                .arg("kill -9 ".to_owned() + &p.to_string())
+                .output()
+                .expect("failed to execute process");
+        }
+
+        self.action_responses.push(ActionResponse {
+            message: "daemon killed. check health with 'crl health'".to_string(),
+            _type: ActionResponseType::Success,
+            crl: None,
+        })
     }
 }
 
