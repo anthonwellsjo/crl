@@ -1,10 +1,11 @@
 use std::{
     fs::{self, File},
+    process,
     time::Duration,
 };
 
 use arboard::Clipboard;
-use arw_brr::get_user;
+use arw_brr::{get_processes, get_user};
 use daemonize::Daemonize;
 use rand::Rng;
 use tokio::time::interval;
@@ -14,12 +15,13 @@ use crate::db::{get_db_path, get_latest, save_new_crl, Crl, SavedCrl};
 #[derive(Debug, PartialEq)]
 pub enum Action {
     Start,
+    Health,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
         match s {
             "s" | "start" => Some(Action::Start),
-            "isalive" => Some(Action::Start),
+            "h" | "health" => Some(Action::Health),
             _ => None,
         }
     }
@@ -54,7 +56,17 @@ impl Session {
             Some(Action::Start) => {
                 self.run_daemon();
             }
-            None => todo!(),
+            Some(Action::Health) => {
+                self.check_health();
+            }
+
+            None => {
+                self.action_responses.push(ActionResponse {
+                    message: "no action?".to_string(),
+                    _type: ActionResponseType::Success,
+                    crl: None,
+                });
+            }
         }
     }
 
@@ -62,18 +74,18 @@ impl Session {
         let mut clipboard = Clipboard::new().unwrap();
         let os_clip = clipboard.get_text().unwrap();
         let crl_clip = get_latest().unwrap();
-        println!("OS clipboard: {}", os_clip);
+        // println!("OS clipboard: {}", os_clip);
         match crl_clip {
             Some(crl) => {
-                println!("CRL clipboard: {}", crl.crl.text);
+                // println!("CRL clipboard: {}", crl.crl.text);
                 if os_clip != crl.crl.text {
-                    println!("DIFF detected -> updating");
+                    // println!("DIFF detected -> updating");
                     save_new_crl(&Crl { text: os_clip }).unwrap();
                 }
             }
             None => {
-                println!("CRL clipboard is empty");
-                println!("DIFF detected -> updating");
+                // println!("CRL clipboard is empty");
+                // println!("DIFF detected -> updating");
                 save_new_crl(&Crl { text: os_clip }).unwrap();
             }
         }
@@ -133,6 +145,42 @@ impl Session {
             _type: ActionResponseType::Content,
             crl: None,
         });
+    }
+
+    fn check_health(&mut self) {
+        let procs = get_processes("crl");
+
+        if procs.pid.len() < 2 {
+            self.action_responses.push(ActionResponse {
+                message: "clr daemon is not running. run 'sudo crl start' to restart...".to_owned(),
+                _type: ActionResponseType::Error,
+                crl: None,
+            })
+        }
+
+        if procs.pid.len() == 2 {
+            let cur_proc_pid = procs
+                .pid
+                .iter()
+                .find(|p| p.to_owned().to_owned() != process::id())
+                .unwrap();
+
+            self.action_responses.push(ActionResponse {
+                message: "crl daemon is running on pid: ".to_owned() + &cur_proc_pid.to_string(),
+                _type: ActionResponseType::Success,
+                crl: None,
+            })
+        }
+
+        if procs.pid.len() > 2 {
+            self.action_responses.push(ActionResponse {
+                message: "more than one daemon running... not good.".to_owned(),
+                _type: ActionResponseType::Error,
+                crl: None,
+            })
+        }
+
+        println!("{:?}", procs);
     }
 }
 
