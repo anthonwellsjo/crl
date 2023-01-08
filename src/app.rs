@@ -10,13 +10,14 @@ use daemonize::Daemonize;
 use rand::Rng;
 use tokio::time::interval;
 
-use crate::db::{get_db_path, get_latest, save_new_crl, Crl, SavedCrl};
+use crate::db::{get_crls, get_db_path, get_latest, save_new_crl, Crl, SavedCrl};
 
 #[derive(Debug, PartialEq)]
 pub enum Action {
     Start,
     Health,
     Kill,
+    List,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
@@ -24,6 +25,7 @@ impl Action {
             "s" | "start" => Some(Action::Start),
             "h" | "health" => Some(Action::Health),
             "k" | "kill" => Some(Action::Kill),
+            "l" | "list" => Some(Action::List),
             _ => None,
         }
     }
@@ -63,6 +65,22 @@ impl Session {
             }
             Some(Action::Kill) => {
                 self.kill_daemon();
+            }
+            Some(Action::List) => {
+                match argument {
+                    Some(arg) => {
+                        if arg.parse::<u32>().is_ok() {
+                            self.list_crls(arg.parse::<u32>().unwrap());
+                        }
+                    }
+                    None => {
+                        self.action_responses.push(ActionResponse {
+                            message: "this action requires an argument.".to_string(),
+                            _type: ActionResponseType::Error,
+                            crl: None,
+                        });
+                    }
+                };
             }
             None => {
                 self.action_responses.push(ActionResponse {
@@ -195,6 +213,22 @@ impl Session {
             _type: ActionResponseType::Success,
             crl: None,
         })
+    }
+
+    fn list_crls(&mut self, arg: u32) {
+        let num = neutralize_num(arg, 0, 50);
+        let crls = get_crls(arg).unwrap();
+        println!("{:?}", crls);
+    }
+}
+
+pub fn neutralize_num(input: u32, min: u32, max: u32) -> u32 {
+    if input > max {
+        max
+    } else if input < min {
+        min
+    } else {
+        input
     }
 }
 

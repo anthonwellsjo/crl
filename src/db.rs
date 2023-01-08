@@ -38,12 +38,14 @@ pub fn get_db_connection() -> Result<Connection> {
     Ok(conn)
 }
 
-pub fn get_crls() -> Result<Vec<SavedCrl>> {
+pub fn get_crls(limit: u32) -> Result<Vec<SavedCrl>> {
     let conn = get_db_connection()?;
 
     let mut stmt = conn.prepare(
         "SELECT id, text, created_at
-         FROM crls",
+         FROM crls
+         ORDER BY created_at ASC
+         LIMIT 25",
     )?;
 
     let crls = stmt.query_map([], |row| {
@@ -152,7 +154,7 @@ mod tests {
             let clr = Crl::new(text);
             save_new_crl(&clr).unwrap();
         }
-        let crls_from_db = super::get_crls().unwrap();
+        let crls_from_db = super::get_crls(10).unwrap();
         let mut texts_from_db = crls_from_db.iter().map(|crl| -> &str { &crl.crl.text });
         assert!(texts_from_db.all(|item| texts.contains(&item)));
     }
@@ -162,7 +164,7 @@ mod tests {
         let text = "Test description";
         let crl = Crl::new(text);
         save_new_crl(&crl).unwrap();
-        let crls = super::get_crls().unwrap();
+        let crls = super::get_crls(10).unwrap();
         assert_eq!(crls.iter().any(|i| i.crl.text == text), true);
     }
 
@@ -175,7 +177,7 @@ mod tests {
         save_new_crl(&crl).unwrap();
         save_new_crl(&crl2).unwrap();
 
-        let crls = super::get_crls().unwrap();
+        let crls = super::get_crls(10).unwrap();
         assert!(&crls.iter().any(|x| x.crl.text == text_two));
     }
 
