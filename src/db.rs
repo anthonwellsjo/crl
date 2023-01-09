@@ -39,13 +39,14 @@ pub fn get_db_connection() -> Result<Connection> {
 }
 
 pub fn get_crls(limit: u32) -> Result<Vec<SavedCrl>> {
+    let limit = neutralize_num(limit, 0, 50);
     let conn = get_db_connection()?;
 
     let mut stmt = conn.prepare(
-        "SELECT id, text, created_at
+        &("SELECT id, text, created_at
          FROM crls
-         ORDER BY created_at ASC
-         LIMIT 25",
+         ORDER BY created_at DESC
+         LIMIT ".to_owned() + &limit.to_string())
     )?;
 
     let crls = stmt.query_map([], |row| {
@@ -114,7 +115,7 @@ pub fn save_new_crl(crl: &Crl) -> Result<()> {
 
     conn.execute(
         "INSERT INTO crls (text) values (?1)",
-        &[&crl.text.to_string()],
+        &[&crl.text],
     )?;
 
     conn.close()
@@ -136,6 +137,16 @@ pub fn get_db_path() -> String {
             }
             None => panic!("Could not find a home directory"),
         }
+    }
+}
+
+pub fn neutralize_num(input: u32, min: u32, max: u32) -> u32 {
+    if input > max {
+        max
+    } else if input < min {
+        min
+    } else {
+        input
     }
 }
 

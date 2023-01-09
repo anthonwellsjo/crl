@@ -35,7 +35,7 @@ impl Action {
 pub struct ActionResponse {
     pub message: String,
     pub _type: ActionResponseType,
-    pub crl: Option<SavedCrl>,
+    pub crls: Option<Vec<SavedCrl>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -67,26 +67,13 @@ impl Session {
                 self.kill_daemon();
             }
             Some(Action::List) => {
-                match argument {
-                    Some(arg) => {
-                        if arg.parse::<u32>().is_ok() {
-                            self.list_crls(arg.parse::<u32>().unwrap());
-                        }
-                    }
-                    None => {
-                        self.action_responses.push(ActionResponse {
-                            message: "this action requires an argument.".to_string(),
-                            _type: ActionResponseType::Error,
-                            crl: None,
-                        });
-                    }
-                };
+                self.list_crls(argument);
             }
             None => {
                 self.action_responses.push(ActionResponse {
                     message: "no action?".to_string(),
                     _type: ActionResponseType::Success,
-                    crl: None,
+                    crls: None,
                 });
             }
         }
@@ -117,7 +104,7 @@ impl Session {
         self.action_responses.push(ActionResponse {
             message: "Starting crl...".to_string(),
             _type: ActionResponseType::Content,
-            crl: None,
+            crls: None,
         });
 
         let stdout = File::create("./daemon.out").unwrap();
@@ -152,7 +139,7 @@ impl Session {
                 self.action_responses.push(ActionResponse {
                     message: e.to_string(),
                     _type: ActionResponseType::Content,
-                    crl: None,
+                    crls: None,
                 });
                 return;
             }
@@ -160,12 +147,12 @@ impl Session {
         self.action_responses.push(ActionResponse {
             message: "Ok!".to_string(),
             _type: ActionResponseType::Success,
-            crl: None,
+            crls: None,
         });
         self.action_responses.push(ActionResponse {
             message: "But check that process is alive with arg 'crl health'".to_string(),
             _type: ActionResponseType::Content,
-            crl: None,
+            crls: None,
         });
     }
 
@@ -176,7 +163,7 @@ impl Session {
             self.action_responses.push(ActionResponse {
                 message: "clr daemon is not running. run 'sudo crl start' to restart...".to_owned(),
                 _type: ActionResponseType::Error,
-                crl: None,
+                crls: None,
             })
         }
 
@@ -185,7 +172,7 @@ impl Session {
                 message: "crl daemon is running on pid: ".to_owned()
                     + &procs.pid.first().unwrap().to_string(),
                 _type: ActionResponseType::Success,
-                crl: None,
+                crls: None,
             })
         }
 
@@ -193,7 +180,7 @@ impl Session {
             self.action_responses.push(ActionResponse {
                 message: "more than one daemon running... not good.".to_owned(),
                 _type: ActionResponseType::Error,
-                crl: None,
+                crls: None,
             })
         }
     }
@@ -211,26 +198,29 @@ impl Session {
         self.action_responses.push(ActionResponse {
             message: "daemon killed. check health with 'crl health'".to_string(),
             _type: ActionResponseType::Success,
-            crl: None,
+            crls: None,
         })
     }
 
-    fn list_crls(&mut self, arg: u32) {
-        let num = neutralize_num(arg, 0, 50);
-        let crls = get_crls(arg).unwrap();
-        println!("{:?}", crls);
+    fn list_crls(&mut self, arg: Option<String>) {
+        let crls;
+        match arg {
+            Some(arg) => {
+                if arg.parse::<u32>().is_ok(){
+                    crls = get_crls(arg.parse::<u32>().unwrap())
+                } else {
+                    self.action_responses.push(ActionResponse { message: "limit argument needs to fit in a u32 integer.".to_string(), _type: ActionResponseType::Error, crls: None });
+                    return;
+                }
+            }
+            None => {
+                crls = get_crls(25);
+            }
+        }
+        self.action_responses.push(ActionResponse { message: "".to_string(), _type: ActionResponseType::Content, crls: Some(crls.unwrap()) });
     }
 }
 
-pub fn neutralize_num(input: u32, min: u32, max: u32) -> u32 {
-    if input > max {
-        max
-    } else if input < min {
-        min
-    } else {
-        input
-    }
-}
 
 // /// Contains common util functions and properties for testing
 pub struct TestUtils {}

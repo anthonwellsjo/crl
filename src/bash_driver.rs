@@ -11,8 +11,12 @@ pub fn display_action_response(res: &ActionResponse) {
         println!("{}", res.message);
     }
     if res._type == ActionResponseType::Content {
-        match &res.crl {
-            Some(crl) => println!("{} {}",crl.id, crl.crl.text),
+        match &res.crls {
+            Some(crls) => {
+                for (index, crl) in crls.iter().enumerate() {
+                    println!("{} {}", index, crl.crl.text);
+                }
+            },
             None => {}
         }
     }
