@@ -38,7 +38,17 @@ pub fn get_db_connection() -> Result<Connection> {
     Ok(conn)
 }
 
-pub fn get_crls(limit: u32) -> Result<Vec<SavedCrl>> {
+pub fn reset() -> Result<usize> {
+    let conn = Connection::open(get_db_path())?;
+    let rows = conn.execute(
+        "DELETE FROM crls",
+        [],
+    )?;
+
+    Ok(rows)
+}
+
+pub fn get_many(limit: u32) -> Result<Vec<SavedCrl>> {
     let limit = neutralize_num(limit, 0, 50);
     let conn = get_db_connection()?;
 

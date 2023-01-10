@@ -18,6 +18,8 @@ pub enum Action {
     Health,
     Kill,
     List,
+    Clean,
+    Set,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
@@ -26,6 +28,8 @@ impl Action {
             "h" | "health" => Some(Action::Health),
             "k" | "kill" => Some(Action::Kill),
             "l" | "list" => Some(Action::List),
+            "c" | "clean" => Some(Action::Clean),
+            "g" | "get" => Some(Action::Set),
             _ => None,
         }
     }
@@ -68,6 +72,12 @@ impl Session {
             }
             Some(Action::List) => {
                 self.list_crls(argument);
+            }
+            Some(Action::Set) => {
+                self.set_crl_to_clipboard(argument);
+            }
+            Some(Action::Clean) => {
+                self.clean_database();
             }
             None => {
                 self.action_responses.push(ActionResponse {
