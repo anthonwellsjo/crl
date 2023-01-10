@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    process::{self, Command},
+    process::Command,
     time::Duration,
 };
 
@@ -10,7 +10,7 @@ use daemonize::Daemonize;
 use rand::Rng;
 use tokio::time::interval;
 
-use crate::db::{get_crls, get_db_path, get_latest, save_new_crl, Crl, SavedCrl};
+use crate::db::{self, get_db_path, get_latest, get_many, save_new_crl, Crl, SavedCrl};
 
 #[derive(Debug, PartialEq)]
 pub enum Action {
@@ -24,7 +24,8 @@ pub enum Action {
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
         match s {
-            "s" | "start" => Some(Action::Start),
+            "st" | "start" => Some(Action::Start),
+            "s" | "set" => Some(Action::Set),
             "h" | "health" => Some(Action::Health),
             "k" | "kill" => Some(Action::Kill),
             "l" | "list" => Some(Action::List),
@@ -216,21 +217,81 @@ impl Session {
         let crls;
         match arg {
             Some(arg) => {
-                if arg.parse::<u32>().is_ok(){
-                    crls = get_crls(arg.parse::<u32>().unwrap())
+                if arg.parse::<u32>().is_ok() {
+                    crls = get_many(arg.parse::<u32>().unwrap())
                 } else {
-                    self.action_responses.push(ActionResponse { message: "limit argument needs to fit in a u32 integer.".to_string(), _type: ActionResponseType::Error, crls: None });
+                    self.action_responses.push(ActionResponse {
+                        message: "limit argument needs to fit in a u32 integer.".to_string(),
+                        _type: ActionResponseType::Error,
+                        crls: None,
+                    });
                     return;
                 }
             }
             None => {
-                crls = get_crls(25);
+                crls = get_many(25);
             }
         }
-        self.action_responses.push(ActionResponse { message: "".to_string(), _type: ActionResponseType::Content, crls: Some(crls.unwrap()) });
+        self.action_responses.push(ActionResponse {
+            message: "".to_string(),
+            _type: ActionResponseType::Content,
+            crls: Some(crls.unwrap()),
+        });
+    }
+
+    fn set_crl_to_clipboard(&mut self, id: Option<String>) {
+        match id {
+            Some(id) => {
+                let mut clipboard = Clipboard::new().unwrap();
+                let res = db::get_one(&id);
+
+                match res {
+                    Ok(res) => {
+                        if let Some(crl) = res {
+                            clipboard.set_text(&crl.crl.text).unwrap();
+                            self.action_responses.push(ActionResponse {
+                                message: "success!".to_string(),
+                                _type: ActionResponseType::Success,
+                                crls: Some(vec![crl]),
+                            })
+                        } else {
+                            self.action_responses.push(ActionResponse {
+                                message: "no crl with that id!".to_string(),
+                                _type: ActionResponseType::Error,
+                                crls: None,
+                            })
+                        }
+                    }
+                    Err(err) => self.action_responses.push(ActionResponse {
+                        message: err.to_string(),
+                        _type: ActionResponseType::Error,
+                        crls: None,
+                    }),
+                }
+            }
+            None => self.action_responses.push(ActionResponse {
+                message: "please provide a valid id.".to_string(),
+                _type: ActionResponseType::Error,
+                crls: None,
+            }),
+        }
+    }
+
+    fn clean_database(&mut self) {
+        match db::reset() {
+            Ok(num) => self.action_responses.push(ActionResponse {
+                message: num.to_string() + &" crls deleted".to_string(),
+                _type: ActionResponseType::Success,
+                crls: None,
+            }),
+            Err(err) => self.action_responses.push(ActionResponse {
+                message: err.to_string(),
+                _type: ActionResponseType::Error,
+                crls: None,
+            }),
+        }
     }
 }
-
 
 // /// Contains common util functions and properties for testing
 pub struct TestUtils {}

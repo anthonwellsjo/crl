@@ -13,8 +13,8 @@ pub fn display_action_response(res: &ActionResponse) {
     if res._type == ActionResponseType::Content {
         match &res.crls {
             Some(crls) => {
-                for (index, crl) in crls.iter().enumerate() {
-                    println!("{} {}", index, crl.crl.text);
+                for crl in crls.iter() {
+                    println!("{} {}", crl.id, crl.crl.text.trim());
                 }
             },
             None => {}

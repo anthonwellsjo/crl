@@ -107,7 +107,45 @@ pub fn get_latest() -> Result<Option<SavedCrl>> {
         };
         saved_crls.push(record);
     }
-    println!("gaaaaaaaaah {:?}", saved_crls);
+
+    match saved_crls.pop() {
+        Some(crl) => {
+            match crl {
+                Some(_) => Ok(crl),
+                None => Ok(None),
+            }
+        }
+        None => Ok(None),
+    }
+}
+
+pub fn get_one(id: &str) -> Result<Option<SavedCrl>> {
+    let conn = get_db_connection()?;
+
+    let mut stmt = conn.prepare(
+        &("SELECT id, text, created_at
+         FROM crls
+         WHERE id=".to_owned() + id),
+    )?;
+
+    let crls = stmt.query_map([], |row| {
+        let crl = SavedCrl {
+            id: row.get(0)?,
+            crl: Crl { text: row.get(1)? },
+            created_at: row.get(2)?,
+        };
+        Ok(crl)
+    })?;
+
+    let mut saved_crls: Vec<Option<SavedCrl>> = Vec::new();
+
+    for crl in crls {
+        let record = match crl {
+            Ok(_crl) => Some(_crl),
+            Err(error) => None,
+        };
+        saved_crls.push(record);
+    }
 
     match saved_crls.pop() {
         Some(crl) => {
@@ -175,7 +213,7 @@ mod tests {
             let clr = Crl::new(text);
             save_new_crl(&clr).unwrap();
         }
-        let crls_from_db = super::get_crls(10).unwrap();
+        let crls_from_db = super::get_many(10).unwrap();
         let mut texts_from_db = crls_from_db.iter().map(|crl| -> &str { &crl.crl.text });
         assert!(texts_from_db.all(|item| texts.contains(&item)));
     }
@@ -185,7 +223,7 @@ mod tests {
         let text = "Test description";
         let crl = Crl::new(text);
         save_new_crl(&crl).unwrap();
-        let crls = super::get_crls(10).unwrap();
+        let crls = super::get_many(10).unwrap();
         assert_eq!(crls.iter().any(|i| i.crl.text == text), true);
     }
 
@@ -198,7 +236,7 @@ mod tests {
         save_new_crl(&crl).unwrap();
         save_new_crl(&crl2).unwrap();
 
-        let crls = super::get_crls(10).unwrap();
+        let crls = super::get_many(10).unwrap();
         assert!(&crls.iter().any(|x| x.crl.text == text_two));
     }
 
