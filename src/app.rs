@@ -20,17 +20,20 @@ pub enum Action {
     List,
     Clean,
     Set,
+    Get,
+    Help,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
         match s {
-            "st" | "start" => Some(Action::Start),
+            "start" => Some(Action::Start),
             "s" | "set" => Some(Action::Set),
-            "h" | "health" => Some(Action::Health),
+            "health" => Some(Action::Health),
             "k" | "kill" => Some(Action::Kill),
             "l" | "list" => Some(Action::List),
             "c" | "clean" => Some(Action::Clean),
-            "g" | "get" => Some(Action::Set),
+            "g" | "get" => Some(Action::Get),
+            "h" | "help" => Some(Action::Help),
             _ => None,
         }
     }
@@ -63,7 +66,7 @@ impl Session {
     pub fn run(&mut self, action: Option<Action>, argument: Option<String>) {
         match action {
             Some(Action::Start) => {
-                self.run_daemon();
+                self.run_daemon(false);
             }
             Some(Action::Health) => {
                 self.check_health();
@@ -79,6 +82,12 @@ impl Session {
             }
             Some(Action::Clean) => {
                 self.clean_database();
+            }
+            Some(Action::Get) => {
+                todo!("a fn for getting crls from a query");
+            }
+            Some(Action::Help) => {
+                self.show_help();
             }
             None => {
                 self.action_responses.push(ActionResponse {
@@ -111,7 +120,7 @@ impl Session {
         }
     }
 
-    pub fn run_daemon(&mut self) {
+    pub fn run_daemon(&mut self, block_polling: bool) {
         self.action_responses.push(ActionResponse {
             message: "Starting crl...".to_string(),
             _type: ActionResponseType::Content,
@@ -142,7 +151,9 @@ impl Session {
                 .block_on(async {
                     let mut interval = interval(Duration::from_millis(500));
                     loop {
-                        Session::refresh_clipboard();
+                        if !block_polling {
+                            Session::refresh_clipboard();
+                        }
                         interval.tick().await;
                     }
                 }),
@@ -291,6 +302,25 @@ impl Session {
             }),
         }
     }
+
+    fn show_help(&mut self) {
+        self.action_responses.push(ActionResponse {
+            message: "
+            command:        argument:
+
+            start           -                   start crl daemon
+            s, set          crl id              sets crl to os clipboard
+            health          -                   check daemon health
+            k, kill         -                   kill crl daemon
+            l, list         -, limit            lists crls 
+            c, clean        -                   deletes all crl
+            g, get          query               queries crls and lists them
+            h, help         -                   what you are doing now
+            ".to_string(),
+            _type: ActionResponseType::Content,
+            crls: None,
+        });
+    }
 }
 
 // /// Contains common util functions and properties for testing
@@ -325,7 +355,7 @@ mod tests {
         db::{get_latest, save_new_crl, Crl},
     };
 
-    use super::Session;
+    use super::{Session};
 
     #[test]
     fn detect_diff() {

@@ -103,7 +103,7 @@ pub fn get_latest() -> Result<Option<SavedCrl>> {
     for crl in crls {
         let record = match crl {
             Ok(_crl) => Some(_crl),
-            Err(error) => None,
+            Err(_) => None,
         };
         saved_crls.push(record);
     }
@@ -142,7 +142,7 @@ pub fn get_one(id: &str) -> Result<Option<SavedCrl>> {
     for crl in crls {
         let record = match crl {
             Ok(_crl) => Some(_crl),
-            Err(error) => None,
+            Err(_) => None,
         };
         saved_crls.push(record);
     }
@@ -200,10 +200,9 @@ pub fn neutralize_num(input: u32, min: u32, max: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{db::{get_db_path, save_new_crl, Crl}, app::TestUtils};
-    use rand::Rng;
+    use crate::{db::{save_new_crl, Crl}, app::TestUtils};
     use core::time;
-    use std::{fs, thread};
+    use std::thread;
 
     #[test]
     fn get_crls() {
