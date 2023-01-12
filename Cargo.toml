@@ -1,11 +1,11 @@
 [package]
 name = "crl"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT OR Apache-2.0" 
 description = "super minimal CLI clipboard manager."
-repository = "https://github.com/anthonwellsjo/dro"
-keywords = ["cli", "todo", "dro", "minimal", "bash_life"]
+repository = "https://github.com/anthonwellsjo/crl"
+keywords = ["cli", "todo", "crl", "minimal", "bash_life"]
 include = [
     "**/*.rs",
     "Cargo.toml",
