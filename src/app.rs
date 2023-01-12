@@ -306,16 +306,16 @@ impl Session {
     fn show_help(&mut self) {
         self.action_responses.push(ActionResponse {
             message: "
-            command:        argument:
+command:        argument:
 
-            start           -                   start crl daemon
-            s, set          crl id              sets crl to os clipboard
-            health          -                   check daemon health
-            k, kill         -                   kill crl daemon
-            l, list         -, limit            lists crls 
-            c, clean        -                   deletes all crl
-            g, get          query               queries crls and lists them
-            h, help         -                   what you are doing now
+start           -                   start crl daemon
+s, set          crl id              sets crl to os clipboard
+health          -                   check daemon health
+k, kill         -                   kill crl daemon
+l, list         -, limit            lists crls 
+c, clean        -                   deletes all crl
+g, get          query               queries crls and lists them
+h, help         -                   what you are doing now
             ".to_string(),
             _type: ActionResponseType::Content,
             crls: None,
