@@ -1,0 +1,25 @@
+name: Publish crate
+run-name: Publishing crate by @${{ github.actor }}
+on:
+  workflow_dispatch:
+  push:
+    branches: [ $default-branch ]
+
+jobs:
+  publish:
+    name: Publish to cargo
+    runs-on: macos-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - run: cargo publish --token ${CRATES_TOKEN}
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
