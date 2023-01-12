@@ -10,7 +10,7 @@ use daemonize::Daemonize;
 use rand::Rng;
 use tokio::time::interval;
 
-use crate::db::{self, get_db_path, get_latest, get_many, save_new_crl, Crl, SavedCrl};
+use crate::db::{self, get_app_path, get_latest, get_many, save_new_crl, Crl, SavedCrl};
 
 #[derive(Debug, PartialEq)]
 pub enum Action {
@@ -22,6 +22,7 @@ pub enum Action {
     Set,
     Get,
     Help,
+    Version,
 }
 impl Action {
     pub fn from_string(s: &str) -> Option<Action> {
@@ -34,6 +35,7 @@ impl Action {
             "c" | "clean" => Some(Action::Clean),
             "g" | "get" => Some(Action::Get),
             "h" | "help" => Some(Action::Help),
+            "v" | "version" => Some(Action::Version),
             _ => None,
         }
     }
@@ -89,6 +91,9 @@ impl Session {
             Some(Action::Help) => {
                 self.show_help();
             }
+            Some(Action::Version) => {
+                self.show_version();
+            }
             None => {
                 self.action_responses.push(ActionResponse {
                     message: "no action?".to_string(),
@@ -127,8 +132,8 @@ impl Session {
             crls: None,
         });
 
-        let stdout = File::create("./daemon.out").unwrap();
-        let stderr = File::create("./daemon.err").unwrap();
+        let stdout = File::create(get_app_path() + "daemon.out").unwrap();
+        let stderr = File::create(get_app_path() + "./daemon.err").unwrap();
 
         let daemonize = Daemonize::new()
             .pid_file("/tmp/test.pid") // Every method except `new` and `start`
@@ -303,6 +308,14 @@ impl Session {
         }
     }
 
+    fn show_version(&mut self) {
+        self.action_responses.push(ActionResponse {
+            message:  env!("CARGO_PKG_VERSION").to_string(),
+            _type: ActionResponseType::Content,
+            crls: None,
+        });
+    }
+
     fn show_help(&mut self) {
         self.action_responses.push(ActionResponse {
             message: "
@@ -334,8 +347,8 @@ impl TestUtils {
     }
     pub fn cleanup_test_database() {
         fn remove_test_db() {
-            if std::path::Path::new(&get_db_path()).exists() {
-                fs::remove_file(get_db_path()).unwrap_or_else(|err| {
+            if std::path::Path::new(&get_app_path()).exists() {
+                fs::remove_file(get_app_path()).unwrap_or_else(|err| {
                     panic!("Panicking while deleting test database: {}", err)
                 });
             }

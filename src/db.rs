@@ -26,7 +26,7 @@ impl Crl {
 ///  Gets connection to DB. This function will create a new DB if
 ///  not already present
 pub fn get_db_connection() -> Result<Connection> {
-    let conn = Connection::open(get_db_path())?;
+    let conn = Connection::open(get_app_path())?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crls (
              id INTEGER PRIMARY KEY,
@@ -39,7 +39,7 @@ pub fn get_db_connection() -> Result<Connection> {
 }
 
 pub fn reset() -> Result<usize> {
-    let conn = Connection::open(get_db_path())?;
+    let conn = Connection::open(get_app_path())?;
     let rows = conn.execute(
         "DELETE FROM crls",
         [],
@@ -173,7 +173,7 @@ pub fn save_new_crl(crl: &Crl) -> Result<()> {
 }
 
 /// Gets db-path depending on environment and os. Creates path if not yet there.
-pub fn get_db_path() -> String {
+pub fn get_app_path() -> String {
     if cfg!(test) {
         String::from("./test-db.sql")
     } else {
