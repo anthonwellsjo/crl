@@ -15,6 +15,7 @@ often lurking in the terminal? wanna have an neat clipboard manager. crl blablab
 ### installation
 with homebrew:
 ```
+brew install anthonwellsjo/tap/crl
 ```
 or with cargo:
 ```
