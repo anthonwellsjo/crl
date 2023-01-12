@@ -133,7 +133,7 @@ impl Session {
         });
 
         let stdout = File::create(get_app_path() + "daemon.out").unwrap();
-        let stderr = File::create(get_app_path() + "./daemon.err").unwrap();
+        let stderr = File::create(get_app_path() + "daemon.err").unwrap();
 
         let daemonize = Daemonize::new()
             .pid_file("/tmp/test.pid") // Every method except `new` and `start`
