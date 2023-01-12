@@ -1,8 +1,10 @@
+```
                ""#
   mmm    m mm    #
  #"  "   #"  "   #
  #       #       #
  "#mm"   #       "mm
+```
 ###### a super minimal cli clipboard application
 
 
