@@ -171,7 +171,6 @@ dependencies = [
  "arboard",
  "arw_brr",
  "daemonize",
- "dirs",
  "rand",
  "rusqlite",
  "tokio",

@@ -1,7 +1,4 @@
-use std::fs;
-
 use arw_brr::get_app_path;
-use dirs;
 use rusqlite::{Connection, Result};
 
 #[derive(Debug)]
