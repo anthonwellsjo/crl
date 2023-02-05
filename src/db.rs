@@ -1,5 +1,6 @@
 use std::fs;
 
+use arw_brr::get_app_path;
 use dirs;
 use rusqlite::{Connection, Result};
 
@@ -26,7 +27,7 @@ impl Crl {
 ///  Gets connection to DB. This function will create a new DB if
 ///  not already present
 pub fn get_db_connection() -> Result<Connection> {
-    let conn = Connection::open(get_app_path())?;
+    let conn = Connection::open(get_app_path("crl"))?;
     conn.execute(
         "CREATE TABLE IF NOT EXISTS crls (
              id INTEGER PRIMARY KEY,
@@ -39,7 +40,7 @@ pub fn get_db_connection() -> Result<Connection> {
 }
 
 pub fn reset() -> Result<usize> {
-    let conn = Connection::open(get_app_path())?;
+    let conn = Connection::open(get_app_path("crl"))?;
     let rows = conn.execute(
         "DELETE FROM crls",
         [],
@@ -170,22 +171,6 @@ pub fn save_new_crl(crl: &Crl) -> Result<()> {
         .unwrap_or_else(|_| panic!("Panicking while closing conection."));
 
     Ok(())
-}
-
-/// Gets db-path depending on environment and os. Creates path if not yet there.
-pub fn get_app_path() -> String {
-    if cfg!(test) {
-        String::from("./test-db.sql")
-    } else {
-        match dirs::home_dir() {
-            Some(dir) => {
-                let path = dir.to_str().unwrap().to_owned() + "/Library/Application Support/crl/";
-                fs::create_dir_all(&path).unwrap();
-                path + "db.sql"
-            }
-            None => panic!("Could not find a home directory"),
-        }
-    }
 }
 
 pub fn neutralize_num(input: u32, min: u32, max: u32) -> u32 {
